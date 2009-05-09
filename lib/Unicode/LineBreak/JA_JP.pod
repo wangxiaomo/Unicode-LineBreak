@@ -1,0 +1,441 @@
+#-*- perl -*-
+
+=encoding utf8
+
+=head1 NAME
+
+Unicode::LineBreak::JA_JP - UAX #14 Unicode 行分割アルゴリズム
+
+=head1 SYNOPSIS
+
+    use Unicode::LineBreak;
+    $lb = Unicode::LineBreak->new();
+    $broken = $lb->break($string);
+
+=head1 DESCRIPTION
+
+Unicode::LineBreak は、Unicode 標準の附属書14 [UAX #14] で述べる Unicode 行分割アルゴリズムを実行する。
+分割位置を決定する際に、附属書11 [UAX #11] で定義される East_Asian_Width 参考特性も考慮する。
+
+=head2 用語
+
+便宜的に以下の用語を使う。
+
+B<強制分割>〔mandatory break〕は、基本規則で定められており、周囲の文字に関係なく義務的に実行される行分割動作。
+B<任意分割>は、基本規則で認められており、ユーザが実行すると決めた場合に行われる行分割動作。
+[UAX #14] で定義される任意分割にはB<直接分割>〔direct break〕とB<間接分割>〔indirect break〕とがある。
+
+B<音素文字的な文字>〔alphabetic characters〕は、通常、他の文字が分割の機会を与えないかぎり、文字同士の間で行分割できない文字。
+B<表語文字的な文字>〔ideographic characters〕は、通常、その前後で行分割できる文字。
+[UAX #14] では音素文字的な文字のほとんどを AL に、表語文字的な文字のほとんどを ID に分類している。
+これらの用語は文字学の観点からは不正確である。音素文字的な文字は「アルファベット」に分類されない文字も含む。表語文字的な文字は漢字以外の文字、さらには一部の表音文字体系の文字をも含む。
+
+=head2 公開インタフェース
+
+=over 4
+
+=item new ([KEY => VALUE, ...])
+
+I<コンストラクタ>。
+KEY => VALUE の対については L</オプション> を参照。
+
+=item $self->break (STRING)
+
+I<インスタンスメソッド>。
+Unicode 文字列 STRING を分割し、それを返す。
+
+=item $self->config (KEY)
+
+=item $self->config (KEY => VALUE, ...)
+
+I<インスタンスメソッド>。
+設定を取得または変更する。
+KEY => VALUE の対については L</オプション> を参照。
+
+=item getcontext ([Charset => CHARSET], [Language => LANGUAGE])
+
+I<関数>。
+キャラクタセット CHARSET および言語コード LANGUAGE から、それを使う言語/地域の文脈を得る。
+
+=item $self->getlbclass (STRING)
+
+I<インスタンスメソッド>。
+Unicode 文字列 STRING の最初の文字の行分割特性 (分類) を得る。
+C<"AI">、C<"SA">、C<"SG">、C<"XX"> の各分類は他の適切な分類に解決する。
+
+=item $self->getlbrule (BEFORE, AFTER)
+
+I<インスタンスメソッド>。
+分類 BEFORE と分類 AFTER の間での行分割規則を得る。
+以下のいずれかの値が返る。
+
+=over 4
+
+=item C<"MANDATORY">
+
+強制分割。
+
+=item C<"DIRECT">
+
+直接分割も間接分割も認める。
+
+=item C<"INDIRECT">
+
+間接分割を認めるが、直接分割は禁じる。
+
+=item C<"PROHIBITED">
+
+分割を禁じる。
+
+=back
+
+B<注>:
+このメソッドは、C<"BK">、C<"CM">、C<"CR">、C<"LF">、C<"NL">、C<"SP"> の各分類に関わる規則については適切な値を返せないかもしれない。
+また、C<"AI">、C<"SA">、C<"SG">、C<"XX"> の各分類に関わる規則については意味のある値を返さない。
+
+=back
+
+=head2 オプション
+
+L</new>、L</config> の両メソッドには以下の対を指定できる。
+
+=over 4
+
+=item CharactersMax => NUMBER
+
+行に含みうる最大の文字数。行末の空白文字と改行の文字列を除く。
+一般に、文字数は行の長さと等しくないことに注意。
+初期値は C<998>。
+
+=item ColumnsMin => NUMBER
+
+任意分割された行の、改行の文字列と行末の空白文字を含めない最小桁数。
+初期値は C<0>。
+
+=item ColumnsMax => NUMBER
+
+行の、改行の文字列と行末の空白文字を含めない最大桁数。つまり、行の最大長。
+初期値は C<76>。
+
+=back
+
+L</UrgentBreaking> オプションおよび L</行分割動作のカスタマイズ> も参照。
+
+=over 4
+
+=item Context => CONTEXT
+
+言語/地域の文脈を指定する。
+現在使える文脈は C<"EASTASIAN"> か C<"NONEASTASIAN">。
+初期の文脈は C<"NONEASTASIAN">。
+
+=item Format => METHOD
+
+分割した行を整形する方法を指定する。
+
+=over 4
+
+=item C<"DEFAULT">
+
+初期の方法。
+任意分割の位置に改行を挿入するだけ。
+
+=item C<"NEWLINE">
+
+L</Newline> オプションで指定したもので改行を置き換える。
+改行の前とテキスト終端の空白文字を除去する。
+テキスト終端に改行がなければ追加する。
+
+=item C<"TRIM">
+
+任意分割の位置に改行を挿入する。
+改行の前の空白文字を除去する。
+
+=item サブルーチンへの参照
+
+L</"行分割動作のカスタマイズ"> を参照。
+
+=back
+
+L</Newline> オプションも参照。
+
+=item HangulAsAL => C<"YES"> | C<"NO">
+
+ハングル音節とハングル連結チャモ〔conjoining jamo〕を音素文字的な文字 (AL) と扱う。
+初期値は C<"NO">。
+
+=item LegacyCM => C<"YES"> | C<"NO">
+
+前に空白文字がついた結合文字を単独の結合文字 (ID) と扱う。
+Unicode 5.0 版からは、空白文字のこのような使いかたは推奨されない。
+初期値は C<"YES">。
+
+=item Newline => STRING
+
+改行の文字列とする Unicode 文字列。
+初期値は C<"\n">。
+
+=item NSKanaAsID => C<">CLASS...C<">
+
+CLASS で指定した分類に基づき、一部の行頭禁則文字 (NS) を通常の表語文字的な文字 (ID) と扱う。
+CLASS には以下の部分文字列を含められる。
+
+=over 4
+
+=item C<"ALL">
+
+下記の文字すべて。
+C<"YES"> も同じ。
+
+=item C<"ITERATION MARKS">
+
+表語文字的な繰り返し記号。
+
+=over 4
+
+=item U+3005 IDEOGRAPHIC ITERATION MARK
+
+=item U+303B VERTICAL IDEOGRAPHIC ITERATION MARK
+
+=item U+309D HIRAGANA ITERATION MARK
+
+=item U+309E HIRAGANA VOICED ITERATION MARK
+
+=item U+30FD KATAKANA ITERATION MARK
+
+=item U+30FE KATAKANA VOICED ITERATION MARK
+
+=back
+
+注。仮名ではないものもある。
+
+=item C<"KANA SMALL LETTERS">, C<"PROLONGED SOUND MARKS">
+
+小書き仮名、長音記号。
+
+注。これらの文字は行頭禁則文字と扱われることも、通常の表語文字的な文字と扱われることもある。[JIS X 4051] 6.1.1 参照。
+
+=item C<"MASU MARK">
+
+U+303C ます記号。
+
+注。この文字は仮名ではないが、通常 C<"ます"> や C<"マス"> の略記として用いられる。
+
+注。この文字は [UAX #14] では行頭禁則文字 (NS) に分類されるが、[JIS X 4051] では文字クラス (13) (ID に相当) に分類される。
+
+=item C<"NO">
+
+初期値。
+以上のいずれの文字も ID と扱わない。
+
+=back
+
+=item SizingMethod => METHOD
+
+文字列の長さを算出する方法を指定する。
+以下のオプションが使える。
+
+=over 4
+
+=item C<"DEFAULT">
+
+初期の方法。
+
+=item C<"NARROWAL">
+
+ラテン、ギリシア、キリルの各用字系では、特定の文字が曖昧 (A) の East_Asian_Width 特性を持っている。このため、こういった文字は C<"EASTASIAN"> 文脈で広い文字として扱われる。
+このオプションで、そのような文字を狭い文字として扱える。
+
+=item サブルーチンへの参照
+
+L</"行分割動作のカスタマイズ"> を参照。
+
+=back
+
+=item UrgentBreaking => METHOD
+
+長すぎる行の扱いかたを指定する。
+以下のオプションが使える。
+
+=over 4
+
+=item C<"CROAK">
+
+エラーメッセージを出力して死ぬ。
+
+=item C<"FORCE">
+
+長すぎる文字列を無理やり分割する。
+
+=item C<"NONBREAK">
+
+初期の方法。
+長すぎる文字列も分割しない。
+
+=item サブルーチンへの参照
+
+L</行分割動作のカスタマイズ> を参照。
+
+=back
+
+=item UserBreaking => C<[>METHOD, ...C<]>
+
+ユーザ定義の行分割動作を指定する。
+METHOD には以下のものを指定できる。
+
+=over 4
+
+=item C<"NONBREAKURI">
+
+URI を分割しない。
+現在、HTTP(S) と (S)FTP(S) の URI に対応している。
+
+=item C<"BREAKURI">
+
+URI を SOLIDUS (スラッシュ) の前で分割する。
+初期設定では、URI を SOLIDUS のI<後>で分割する。
+
+=item C<[> REGEX, SUBREF C<]>
+
+正規表現 REGEX にマッチする文字列を、サブルーチン SUBREF で分割する。
+詳細は L</行分割動作のカスタマイズ> を参照。
+
+=back
+
+=back
+
+=head2 行分割動作のカスタマイズ
+
+=head3 行の整形
+
+L</Format> オプションにサブルーチンへの参照を指定する場合、そのサブルーチンは 3 つの引数を取らなければならない。オブジェクトのインスタンス、事象の種類、文字列。
+事象の種類は文字列で、サブルーチンが呼ばれた文脈を表す。
+文字列は分割位置の前または後の Unicode 文字列の断片。
+
+    事象  |駆動の契機           |文字列の値
+    -----------------------------------------------------------------
+    "sot" |テキスト先頭         |最初の行の断片
+    "sop" |強制分割の後         |次の行の断片
+    "sol" |任意分割の後         |続きの行の断片
+    ""    |分割の直前           |行全体 (終端の空白文字を除く)
+    "eol" |任意分割             |分割位置の前の空白文字
+    "eop" |強制分割             |改行とその前の空白文字
+    "eot" |テキスト終端         |テキスト終端の空白文字 (と改行)
+    -----------------------------------------------------------------
+
+サブルーチンは、テキストの断片を修正して返さなければならない。なにも修正しなかったことを示すには、C<undef> を返せばよい。
+なお、C<"sot">、C<"sop">、C<"sol"> の文脈での修正はその後の分割位置の決定に影響するが、ほかの文脈での修正は影響しない。
+
+=head3 ユーザ定義の行分割動作
+
+任意分割によって生じる行が CharactersMax、ColumnsMin、ColumnsMax のいずれかの制限を超えると見込まれるときは、引き続く文字列に対してB<緊急分割>を実行できる。
+L</UrgentBreaking> オプションにサブルーチンへの参照を指定する場合、そのサブルーチンは 5 つの引数を取らなければならない。オブジェクトのインスタンス、先立つ行の長さ (LEN とする)、その行の Unicode 文字列 (PRE)、追加される空白文字 (SPC)、分割すべき Unicode 文字列 (STR)。
+
+サブルーチンは、文字列 STR を分割した結果の配列を返さなければならない。
+
+L</UserBreaking> オプションの要素に [REGEX, SUBREF] の配列参照を指定する場合、サブルーチンは 2 つの引数を取らなければならない。オブジェクトのインスタンス、REGEXにマッチする文字列。
+
+サブルーチンは、文字列を分割した結果の配列を返さなければならない。
+
+
+=head3 文字列長の算出
+
+L</SizingMethod> オプションにサブルーチンへの参照を指定する場合、そのサブルーチンは 5 つの引数を取らなければならない。オブジェクトのインスタンス、元の文字列の長さ (LEN とする)、元の Unicode 文字列 (PRE)、追加される空白文字 (SPC)、追加される Unicode 文字列 (STR)。
+
+サブルーチンは C<PRE.SPC.STR> の長さを算出して返さなければならない。
+長さは整数でなくてもよい。長さの単位は随意に選べるが、L</ColumnsMin> オプションおよび L</ColumnsMax> オプションのそれと一致させなければならない。
+
+
+=head3 文字の分類と行分割の基本規則
+
+文字の分類と行分割の基本的な規則は L<Unicode::LineBreak::Data> と L<Unicode::LineBreak::Rules> で定義している。
+これらをカスタマイズしたい場合は、ソースパッケージの F<data> ディレクトリの中を見ること。
+
+
+=head3 設定ファイル
+
+L</new> メソッドおよび L</config> メソッドのオプション引数の組み込み初期値は、 設定ファイルで上書きできる。
+F<Unicode/LineBreak/Defaults.pm>。
+詳細は F<Unicode/LineBreak/Defaults.pm.sample> を読んでほしい。
+
+=head2 標準への適合性
+
+このモジュールで用いている文字の特性値は、Unicode 標準 5.1.0 版による。
+
+このモジュールでは、実装水準 UAX14-C2 を実装しているつもり。
+
+=over 4
+
+=item *
+
+一部の表語文字的な文字を NS として扱うか ID として扱うかを選べる。
+
+=item *
+
+ハングル音節およびハングル連結チャモを ID として扱うか AL として扱うかを選べる。
+
+=item *
+
+AI に分類される文字を AL と ID のどちらに解決するかを選べる。
+
+=item *
+
+CB に分類される文字は解決しない。
+
+=item *
+
+SA に分類される文字は AL に解決する。
+ただし、General_Category 特性が Mn か Mc である文字は CM に解決する。
+
+=item *
+
+SG や XX に分類される文字は AL に解決する。
+
+=back
+
+=head1 BUGS
+
+バグやバグのような動作は、開発者に教えてください。L</AUTHOR> を参照。
+
+=head1 VERSION
+
+$VERSION 変数を参照してほしい。
+
+このモジュールの開発版が
+L<http://hatuka.nezumi.nu/repos/Unicode-LineBreak/>
+にある。
+
+=head1 REFERENCES
+
+=over 4
+
+=item [JIS X 4051]
+
+JIS X 4051:2004
+I<日本語文書の組版方法>.
+日本規格協会, 2004.
+
+=item [UAX #11]
+
+A. Freytag (2008).
+I<Unicode Standard Annex #11: East Asian Width>, Revision 17.
+L<http://unicode.org/reports/tr11/>.
+
+=item [UAX #14]
+
+A. Freytag and A. Heninger (2008).
+I<Unicode Standard Annex #14: Unicode Line Breaking Algorithm>, Revision 22.
+L<http://unicode.org/reports/tr14/>.
+
+=back
+
+=head1 SEE ALSO
+
+L<Text::LineFold::JA_JP>, L<Text::Wrap>.
+
+=head1 AUTHOR
+
+Copyright (C) 2009 Hatuka*nezumi - IKEDA Soji <hatuka(at)nezumi.nu>.
+
+This program is free software; you can redistribute it and/or modify it 
+under the same terms as Perl itself.

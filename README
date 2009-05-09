@@ -1,0 +1,21 @@
+Unicode-LineBreak Package.
+
+Copyright (C) 2009 by Hatuka*nezumi - IKEDA Soji <hatuka(at)nezumi.nu>.
+
+This package is free software; you can redistribute it and/or modify it 
+under the same terms as Perl itself.
+
+                                   ***
+
+Two main modules and some supporting program files are contained. For
+more details read following POD documentations:
+
+    Unicode::LineBreak - UAX #14 Unicode Line Breaking Algorithm
+    Text::LineFold - Line Folding for Plain Text
+
+For japonophones, PODs in Japanese language are also included:
+
+    Unicode::LineBreak::JA_JP - UAX #14 Unicode 行分割アルゴリズム
+    Text::LineFold::JA_JP - プレインテキストの行折り
+
+$$
