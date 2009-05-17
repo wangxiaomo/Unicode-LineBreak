@@ -106,22 +106,23 @@ EOF
 }
 print ");\n\n";
 
-print "our %lb_tailorable = (\n";
-foreach my $c (grep !/$OMIT/, @CLASSES) {
-    print "    '$c' => 1,\n";
-}
-print "    'CM' => 1\n);\n\n";
+#XXXprint "our %lb_tailorable = (\n";
+#XXXforeach my $c (grep !/$OMIT/, @CLASSES) {
+#XXX    print "    '$c' => 1,\n";
+#XXX}
+#XXXprint "    'CM' => 1\n);\n\n";
 
 print <<"EOF";
-use constant M => 'MANDATORY';
-use constant D => 'DIRECT';
-use constant I => 'INDIRECT';
-use constant P => 'PROHIBITED';
+use constant M => 2;
+use constant D => 1;
+use constant I => -1;
+use constant P => -2;
 EOF
 print "\n";
 
 my @rule_classes = grep !/$OMIT/, @CLASSES;
 print <<EOF;
+# Note: Rules for H2, H3, JL, JV, JT aren't used by break() method.
 our \$RULES_MAP = [
 EOF
 print "    #";

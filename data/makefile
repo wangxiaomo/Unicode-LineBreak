@@ -1,5 +1,7 @@
 ## 
 
+MODULE_VERSION = 0.002
+#BETA_VERSION = 01
 UNICODE_VERSION = 5.1.0
 
 UNICODEDATA = UnicodeData-$(UNICODE_VERSION).txt
@@ -33,7 +35,10 @@ $(DATA_PM): $(EASTASIANWIDTH) $(LINEBREAK) EastAsianWidth.custom LineBreak.custo
 $(RULES_PM): Rules rules2pl.pl
 	perl rules2pl.pl $< > $@
 
-$(VERSION_PM): $(DATA_PM) $(RULES_PM)
+$(VERSION_PM): $(DATA_PM) $(RULES_PM) makefile
+	VER=$(MODULE_VERSION); \
+	[ -n "$(BETA_VERSION)" ] && VER=$${VER}_$(BETA_VERSION); \
+	[ -z "$(BETA_VERSION)" ] && VER=$${VER}.`echo -n $(UNICODE_VERSION) | perl -pe 's/\.//g'`; \
 	( \
 	  echo '#-*- perl -*-'; \
 	  echo ''; \
@@ -45,6 +50,7 @@ $(VERSION_PM): $(DATA_PM) $(RULES_PM)
           echo ''; \
           echo '=cut'; \
           echo ''; \
+	  echo 'our $$VERSION = '"'"$$VER"';"; \
 	  echo 'our $$UNICODE_VERSION = '"'"$(UNICODE_VERSION)"';"; \
 	  echo ''; \
 	  echo '1;' \
@@ -72,11 +78,14 @@ LineBreak.custom: $(UNICODEDATA) $(LINEBREAK)
 	  -e 'if ($$SA{$$_[0]}) { if ($$_[2]=~/Mc|Mn/) { print "$$_[0];SAcm # $$_[1]\n" } else { print "$$_[0];SAal # $$_[1]\n" } }' \
 	  $(UNICODEDATA); \
 	  echo ''; \
-	  echo '## NS characters optionally treated as ID (see JIS X 4051, 6.1.1 note 8).'; \
+	  echo '## NS characters optionally treated as ID.'; \
 	  sed -ne '/LETTER SMALL/s/;NS /;NSidKana /p' \
 	      -e '/PROLONGED SOUND MARK/s/;NS /;NSidLong /p' \
 	      -e '/ITERATION MARK/s/;NS /;NSidIter /p' \
 	      -e '/MASU MARK/s/;NS /;NSidMasu /p' \
 	  $(LINEBREAK) \
 	) > $@
+
+clean:
+	rm -f $(DATA_PM) $(RULES_PM) $(VERSION_PM)
 
