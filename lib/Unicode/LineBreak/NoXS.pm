@@ -1,14 +1,10 @@
 package Unicode::LineBreak;
 
 sub _loadconst { }
-our @MAPs = ();
-sub _loadmap {
-    my $idx = shift;
-    my $map = shift;
-    $MAPs[$idx] = $map;
-}
+sub _loadlb { }
+sub _loadea { }
 sub _loadrule { }
-sub _packed_hash { return {@_}; }
+sub _packed_table (@) { return {@_}; }
 
 # _bsearch IDX, VAL, DEFAULT, HASH
 # Examine binary search on property map table with following structure:
@@ -19,10 +15,10 @@ sub _packed_hash { return {@_}; }
 # where start and stop stands for a continuous range of UCS ordinal those
 # are assigned property_value.
 sub _bsearch {
-    my $map = $MAPs[shift];
+    my $map = shift;
     my $val = shift;
     my $def = shift;
-    my $res = shift;
+    my $tbl = shift;
 
     my $top = 0;
     my $bot = $#{$map};
@@ -42,19 +38,28 @@ sub _bsearch {
         }
     }
     $result = $def unless defined $result;
-    my $r = $res->{$result};
+    my $r = $tbl->{$result};
     $result = $r if defined $r;
     $result;
 }
 
-sub getlbclass {
+sub eawidth ($$) {
     my $self = shift;
     my $str = shift;
     return undef unless defined $str and length $str;
-    &_bsearch(0, ord($str), LB_XX, $self->{_lb_hash});
+    &_bsearch($Unicode::LineBreak::ea_MAP, ord($str), EA_A,
+	      $self->{_ea_hash});
 }
 
-sub getlbrule {
+sub lbclass ($$) {
+    my $self = shift;
+    my $str = shift;
+    return undef unless defined $str and length $str;
+    &_bsearch($Unicode::LineBreak::lb_MAP, ord($str), LB_XX,
+	      $self->{_lb_hash});
+}
+
+sub lbrule ($$$) {
     my $self = shift;
     my $b_idx = shift;
     my $a_idx = shift;
@@ -68,9 +73,83 @@ sub getlbrule {
 	$result = $action;
     }
     $result = DIRECT unless defined $result;
-    my $r = $res->{$result};
+    my $r = $self->{_rule_hash}->{$result};
     $result = $r if defined $r;
     $result;
+}
+
+sub strsize ($$$$$;$) {
+    my $self = shift;
+    my $len = shift;
+    my $pre = shift;
+    my $spc = shift;
+    my $str = shift;
+    my $max = shift || 0;
+    $spc = '' unless defined $spc;
+    $str = '' unless defined $str;
+    return $max? 0: $len
+	unless length $spc or length $str;
+
+    my $spcstr = $spc.$str;
+    my $length = length $spcstr;
+    my $idx = 0;
+    my $pos = 0;
+    while (1) {
+	my ($clen, $c, $cls, $nc, $ncls, $width, $w);
+
+	if ($length <= $pos) {
+	    last;
+	}
+	$c = substr($spcstr, $pos, 1);
+	$cls = $self->lbclass($c);
+	$clen = 1;
+
+	# Hangul syllable block
+	if ($cls == LB_H2 or $cls == LB_H3 or
+	    $cls == LB_JL or $cls == LB_JV or $cls == LB_JT) {
+	    while (1) {
+		$pos++;
+		last if $length <= $pos;
+		$nc = substr($spcstr, $pos, 1);
+		$ncls = $self->lbclass($nc);
+		if (($ncls == LB_H2 or $ncls == LB_H3 or
+		    $ncls == LB_JL or $ncls == LB_JV or $ncls == LB_JT) and
+		    $self->lbrule($cls, $ncls) != DIRECT) {
+		    $cls = $ncls;
+		    $clen++;
+		    next;
+		}
+		last;
+	    } 
+	    $width = EA_W;
+	} else {
+	    $pos++;
+	    $width = $self->eawidth($c);
+	}
+	if ($length <= $pos) {
+	    last;
+	}
+
+	# After all, possible widths are nonspacing, wide (F/W) or
+	# narrow (H/N/Na).
+
+	if ($width == EA_Z) {
+	    $w = 0;
+	} elsif ($width == EA_F or $width == EA_W) {
+	    $w = 2;
+	} else {
+	    $w = 1;
+	}
+	if ($max and $max < $len + $w) {
+	    $idx -= length $spc;
+	    $idx = 0 unless 0 < $idx;
+	    last;
+	}
+	$idx += $clen;
+	$len += $w;
+    }
+
+    $max? $idx: $len;
 }
 
 1;

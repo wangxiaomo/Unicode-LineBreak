@@ -1,3 +1,14 @@
+0.005.510  Sat May 29 2009
+
+	* Chg: renamed functions: remove ``get-''.
+	* New: break_partial() method.
+	* New: eawidth() method, XS'ized.
+	* Imp: XS'ized strsize().
+	* Fix: lbclass(): use SV* instead of char*.
+	* Fix: Mc characters aren't nonspacing: Mn, Me, Cc, Cf, Zl and Zp
+	  are nonspacing.
+	* Cleanup codes and PODs.
+
 0.004.510  Sat May 23 2009
 	* New: method getstrsize().
 	* Imp: XS'ize getlbclass().
@@ -5,11 +16,11 @@
 	
 0.003.510  Thu May 21 2009
 	* Fix: Perl 5.6.x - skip tests with older POD::Simple.
-	* Imp: remove \p{lb_??} pattern matchings.
+	* Imp: remove \p{...} pattern matchings slower than substr().
 
 0.002.510  Sun May 17 2009
 	* Partial XS support.
-	* lib/Unicode/LineBreak.pm: Added second format of SizinfMethd
+	* lib/Unicode/LineBreak.pm: Added second format of SizingMethod
 	  subroutines.
 	
 0.001.510  Sun May 10 2009

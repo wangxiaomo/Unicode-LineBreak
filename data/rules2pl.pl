@@ -92,44 +92,29 @@ sub exclusive2re {
         $class{$c} = 1;
     }
     @class = ();
-    foreach my $c (@CLASSES) {
+    foreach my $c (@LBCLASSES) {
         push @class, $c unless $class{$c};
     }
     $class = join('|', @class);
     return qr{$class};
 }
 
-#XXXmy $i = 0;
-#XXXprint RULES_PM "our %lb_IDX = (\n";
-#XXXforeach my $c (@CLASSES) {
-#XXX    print RULES_PM <<"EOF";
-#XXX    '$c' => $i,
-#XXXEOF
-#XXX   $i++;
-#XXX}
-#XXXprint RULES_PM ");\n\n";
-
-#XXXprint RULES_PM "our %lb_tailorable = (\n";
-#XXXforeach my $c (grep !/$OMIT/, @CLASSES) {
-#XXX    print RULES_PM "    '$c' => 1,\n";
-#XXX}
-#XXXprint RULES_PM "    'CM' => 1\n);\n\n";
-
 print CONSTANTS_PM <<"EOF";
 use constant {
-    M => 2,
-    D => 1,
-    I => -1,
-    P => -2,
+    M => 4,
+    D => 3,
+    I => 2,
+    P => 1,
 };
 
 EOF
 print CONSTANTS_PM 'our @LB_CLASSES = qw(';
-print CONSTANTS_PM join " ", map { "LB_$_" } @CLASSES;
+print CONSTANTS_PM join " ", map { "LB_$_" } @LBCLASSES;
 print CONSTANTS_PM ");\n\n";
 
-my @rule_classes = grep !/$OMIT/, @CLASSES;
+my @rule_classes = grep !/$OMIT/, @LBCLASSES;
 print RULES_PM <<EOF;
+# Note: Entries related to BK, CR, CM, LF, NL, SP aren't used by break().
 our \$RULES_MAP = [
 EOF
 print RULES_PM "    #";
@@ -147,7 +132,7 @@ foreach my $b (@rule_classes) {
 	    if ($b =~ /$before/ and $a =~ /$after/) {
 		if ($action == MANDATORY) {
 		    $mandatory = 1;
-		    last;
+		    $direct = 1 unless defined $direct;
 		} elsif ($action == INDIRECT_PROHIBITED) {
 		    $direct = 0 unless defined $direct;
 		    $indirect = 0 unless defined $indirect;
@@ -170,14 +155,14 @@ foreach my $b (@rule_classes) {
 	    last if defined $direct and defined $indirect;
 	}
 	my $action;
-	if ($mandatory) {
-	    $action = 'M'; # '!';
+	if ($mandatory and $direct) {
+	    $action = 'M'; # '!'
 	} elsif ($direct) {
-	    $action = 'D'; # '_';
+	    $action = 'D'; # '_'
 	} elsif ($indirect) {
-	    $action = 'I'; # '%';
+	    $action = 'I'; # '%'
 	} else {
-	    $action = 'P'; # '^';
+	    $action = 'P'; # '^'
 	}
 
 	print RULES_PM "$action,";
