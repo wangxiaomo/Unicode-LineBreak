@@ -1,5 +1,6 @@
 ARTISTIC
 Changes
+data/custom.pl
 data/EastAsianWidth.custom
 data/lbclasses.pl
 data/LineBreak.custom
@@ -7,6 +8,7 @@ data/makefile
 data/map2pl.pl
 data/Rules
 data/rules2pl.pl
+data/SAScripts.txt
 GPL
 lib/Text/LineFold.pm
 lib/Text/LineFold/JA_JP.pod
@@ -31,6 +33,8 @@ t/03ns.t
 t/04fold.t
 t/05urgent.t
 t/06context.t
+t/07sea.t
+t/08partial.t
 t/lb.pl
 t/lf.pl
 t/pod.t
@@ -66,6 +70,7 @@ testin/ko.in
 testin/ko.out
 testin/ru.in
 testin/ru.out
+testin/th.al.out
 testin/th.in
 testin/th.out
 testin/titin.bz
