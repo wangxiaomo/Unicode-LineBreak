@@ -48,7 +48,7 @@ I<インスタンスメソッド>。
 
 Charset オプションとともに、言語/地域の文脈を決めるのに使える。
 初期値は C<"XX">。
-L<Unicode::LineBreak/Context> オプションも参照。
+L<Unicode::LineBreak::JA_JP/Context> オプションも参照。
 
 =item OutputCharset => CHARSET
 
@@ -144,7 +144,10 @@ RFC 2646 (廃止) で定義される C<"Format=Flowed"> 形式をできるだけ
 
 =head1 BUGS
 
-バグやバグのような動作は開発者に教えてください。L</AUTHOR> 参照。
+バグやバグのような動作は開発者に教えてください。
+
+CPAN Request Tracker:
+L<http://rt.cpan.org/Public/Dist/Display.html?Name=Unicode-LineBreak>.
 
 =head1 VERSION
 

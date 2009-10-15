@@ -1,3 +1,55 @@
+1.003.520  Thu Oct 15 2009
+
+	* NOTE: For changes on linebreak library see linebreak/ChangeLog.
+	* Fix: Makefile.PL: fix for dmake+MSWin32 (hopefully).
+	* Fix: LineBreak.xs: UTF8_MAXBYTES exists as of Perl>=5.8.8.  Use
+	  UTF8_MAXLEN.
+	* Fix: URGENT_BREAKING_FUNCS{FORCE}: Workaround for Perl5 RT #69422 -
+	  utf8_mg_pos_cache_update panic - Perl 5.10.1 & (maybe) 5.10.0.
+	* Imp: LineBreak.xs: Check data type of self argument.
+	* Imp: preprocess() get Perl (utf8) string then returns array.  Faster.
+	* Imp: XS'ized break().
+	* New: Unicode::GCString::join().
+	* Added test for Format feature.
+	* Doc: Small fixes.
+	
+1.003_11  Sun Oct 11 2009
+
+	* Imp: Almost full XS version.  Isolated pure-C codes to linebreak library.
+	* Chg: Update Unicode data to version 5.2.0.
+	* Doc: Small fix.
+	
+1.003_09  Sun Oct 04 2009
+
+	* Transitional release - NOTE that this release is VERY slow.
+	* Imp/Chg: Custom functions (for sizing, user breaking, urgent breaking
+	  and format) accepts grapheme cluster string.
+	* Cleanup: separate C codes.
+	* Doc: Added more example.
+	* Doc: Added link to CPAN RT page.
+	* Doc: Added a bug to BUGS section.
+
+1.003_06  Sat Sep 12 2009
+
+	* Fix: Get back LB9: Some CM characters may be single grapheme cluster
+	  as their Grapheme_Cluster_Break property is Control.
+	* Imp: Almost XS'ized grapheme cluster processing.  Approx. 25% faster.
+	
+1.003_05  Thu Sep 10 2009
+
+	* Chg: Include suffixing ``URL:'' to URI pattern.
+	* Imp: Efficient user-breaking.  Approx. 10% faster.
+
+1.003_03  Sat Sep 06 2009
+
+	* Chg: Deprecated non-XS version.
+	* Imp: XS'ized character data. Implemented hash index for searching.
+	  Approx. 10% faster in speed, approx. 40KB more in memory usage.
+	* Removed ranges of trivial entries (e.g. XX on lbmap), reserved for CJK
+	  ideographs etc. from character data maps.
+	* Update Unicode data for 5.2.0beta to those of Aug 24.
+	* Doc: Fixed attributes for some UCS ranges.  Correct several typos.
+
 1.002.510  Sun Jun 21 2009
 
 	* Chg: Apply CMOS rules to "BREAKURI".

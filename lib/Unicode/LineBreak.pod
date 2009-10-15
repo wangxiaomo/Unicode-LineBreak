@@ -68,10 +68,23 @@ Give C<undef> as STRING argument to specify that input was completed.
 
 =item $self->config (KEY)
 
-=item config (SELF, KEY => VALUE, ...)
+=item $self->config (KEY => VALUE, ...)
 
 I<Instance method>.
 Get or update configuration.  About KEY => VALUE pairs see L</Options>.
+
+=item $self->copy
+
+I<Copy constructor>.
+Create a copy of object instance.
+
+=begin comment
+
+=item $self->reset
+
+I<Undocumented>.
+
+=end comment
 
 =back
 
@@ -93,23 +106,6 @@ STRING.
 See L</Constants> for returned value.
 EA_Z means nonspacing (zero width) character.
 Property value A (ambiguous) will be resolved to other appropriate values. 
-
-=begin comment
-
-=item $self->gcinfo (STR, POS)
-
-I<Instance method>.
-Get information of B<grapheme cluster> of Unicode string STR beginning at position POS.
-For more details about grapheme clusters see [UAX #29].
-
-Returns an array of three elements (CLASS, GLEN, ELEN).
-CLASS is line breaking property (class) of the first character of grapheme cluster, except that SA being resolved to AL or CM.
-GLEN is number of characters of grapheme base, including prepending character(s).
-ELEN is number of characters of grapheme extender.
-
-B<N.B.>: Though [UAX #29] defines that hiragana-katakana voiced/semi-voiced sound marks which are not combining marks may be (a part of) grapheme extender, this module treat them as grapheme base.
-
-=end comment
 
 =item $self->lbclass (STRING)
 
@@ -159,6 +155,7 @@ Possible maximum number of characters in one line,
 not counting trailing SPACEs and newline sequence.
 Note that number of characters generally doesn't represent length of line.
 Default is C<998>.
+Should not be C<0>.
 
 =item ColumnsMin => NUMBER
 
@@ -304,7 +301,6 @@ Following methods are available.
 =item C<"NONBREAKURI">
 
 Won't break URIs.
-Currently HTTP(S) and (S)FTP(S) URIs are supported.
 
 =item C<"BREAKURI">
 
@@ -330,10 +326,12 @@ For more details see L</User-Defined Breaking Behaviors>.
 Index values to specify 6 East_Asian_Width properties
 defined by [UAX #11], and EA_Z to specify nonspacing.
 
-=item C<LB_BK>, C<LB_CR>, C<LB_LF>, C<LB_NL>, C<LB_SP>, C<LB_OP>, C<LB_CL>, C<LB_QU>, C<LB_GL>, C<LB_NS>, C<LB_EX>, C<LB_SY>, C<LB_IS>, C<LB_PR>, C<LB_PO>, C<LB_NU>, C<LB_AL>, C<LB_ID>, C<LB_IN>, C<LB_HY>, C<LB_BA>, C<LB_BB>, C<LB_B2>, C<LB_CB>, C<LB_ZW>, C<LB_CM>, C<LB_WJ>, C<LB_H2>, C<LB_H3>, C<LB_JL>, C<LB_JV>, C<LB_JT>, C<LB_SG>, C<LB_AI>, C<LB_SA>, C<LB_XX>
+=item C<LB_BK>, C<LB_CR>, C<LB_LF>, C<LB_NL>, C<LB_SP>, C<LB_OP>, C<LB_CL>, C<LB_CP>, C<LB_QU>, C<LB_GL>, C<LB_NS>, C<LB_EX>, C<LB_SY>, C<LB_IS>, C<LB_PR>, C<LB_PO>, C<LB_NU>, C<LB_AL>, C<LB_ID>, C<LB_IN>, C<LB_HY>, C<LB_BA>, C<LB_BB>, C<LB_B2>, C<LB_CB>, C<LB_ZW>, C<LB_CM>, C<LB_WJ>, C<LB_H2>, C<LB_H3>, C<LB_JL>, C<LB_JV>, C<LB_JT>, C<LB_SG>, C<LB_AI>, C<LB_SA>, C<LB_XX>
 
-Index values to specify 36 line breaking properties (classes)
+Index values to specify 37 line breaking properties (classes)
 defined by [UAX #14].
+
+B<Note>: Property value CP was introduced by Unicode 5.2.0.
 
 =item C<MANDATORY>, C<DIRECT>, C<INDIRECT>, C<PROHIBITED>
 
@@ -391,7 +389,7 @@ affect decision of successive breaking positions while in the others won't.
 For example, following code folds lines removing trailing spaces:
 
     sub fmt {
-        if ($_[2] =~ /^eo/) {
+        if ($_[1] =~ /^eo/) {
             return "\n";
         }
         return undef;
@@ -421,7 +419,7 @@ For example, following code inserts hyphen to the name of several chemical subst
         return map {$_ =~ s/yl$/yl-/; $_} split /(\w+?yl(?=\w))/, $_[4];
     }
     my $lb = Unicode::LineBreak->new(UrgentBreaking => \&hyphenize);
-    print $lb->break("Methionylthreonylthreonylglutaminyl...");
+    print $lb->break("Methionylthreonylthreonylglutaminylarginyl...");
 
 If you specify [REGEX, SUBREF] array reference as an item of
 L</UserBreaking> option,
@@ -433,6 +431,19 @@ SELF is an instance of LineBreak object and
 STR is a Unicode string matched with REGEX.
 
 Subroutine should return an array of broken string STR.
+
+For example, following code break HTTP URLs using [CMOS] rule.
+
+    my $url = qr{http://[\x21-\x7E]+}i;
+    sub breakurl {
+        my $self = shift;
+        my $str = shift;
+        return split m{(?<=[/]) (?=[^/]) |
+                       (?<=[^-.]) (?=[-~.,_?\#%=&]) |
+                       (?<=[=&]) (?=.)}x, $str;
+    }
+    my $lb = Unicode::LineBreak->new(UserBreaking => [$url, \&breakurl]);
+    print $lb->break($string);
 
 =head2 Calculating String Size
 
@@ -563,7 +574,33 @@ For more details read F<Unicode/LineBreak/Defaults.pm.sample>.
 
 =head1 BUGS
 
-Please report bugs or buggy behaviors to developer.  See L</AUTHOR>.
+Please report bugs or buggy behaviors to developer.
+
+CPAN Request Tracker:
+L<http://rt.cpan.org/Public/Dist/Display.html?Name=Unicode-LineBreak>.
+
+=over 4
+
+=item *
+
+Following characters behave as if they were CM.
+
+    UCS    |Name                                |LB |GCB
+    ------------------------------------------------------------
+    U+034F |COMB. GRAPHEME JOINER               |GL |Extend
+    U+035C |COMB. DOUBLE BREVE BELOW            |GL |Extend
+    U+035D |COMB. DOUBLE BREVE                  |GL |Extend
+    U+035E |COMB. DOUBLE MACRON                 |GL |Extend
+    U+035F |COMB. DOUBLE MACRON BELOW           |GL |Extend
+    U+0360 |COMB. DOUBLE TILDE                  |GL |Extend
+    U+0361 |COMB. DOUBLE INVERTED BREVE         |GL |Extend
+    U+0362 |COMB. DOUBLE RIGHTWARDS ARROW BELOW |GL |Extend
+    U+0F7F |TIBETAN SIGN RNAM BCAD (visarga)    |BA |SpacingMark
+    U+FF9E |HW. KATAKANA VOICED SOUND MARK      |NS |Extend
+    U+FF9F |HW. KATAKANA SEMI-VOICED SOUND MARK |NS |Extend
+    ------------------------------------------------------------
+
+=back
 
 =head1 VERSION
 
@@ -575,7 +612,7 @@ L<http://hatuka.nezumi.nu/repos/Unicode-LineBreak/>.
 =head2 Conformance to Standards
 
 Character properties this module is based on are defined by
-Unicode Standards version 5.1.0.
+Unicode Standards version 5.2.0.
 
 This module is intended to implement UAX14-C2.
 
@@ -602,12 +639,37 @@ Character(s) assigned to CB are not resolved.
 
 When word segmentation for South East Asian writing systems is not supported,
 characters assigned to SA are resolved to AL,
-except that characters that have Grapheme_Break property value
+except that characters that have Grapheme_Cluster_Break property value
 Extend or SpacingMark be resolved to CM.
 
 =item *
 
 Characters assigned to SG or XX are resolved to AL.
+
+=item *
+
+Code points of following UCS ranges are given fixed property values even
+if they have not been assigned any characers.
+
+    Ranges             | lbclass()  | eawidth()  | Description
+    -------------------------------------------------------------
+    U+3400..U+4DBF     | ID         | W          | CJK ideographs
+    U+4E00..U+9FFF     | ID         | W          | CJK ideographs
+    U+D800..U+DFFF     | AL (SG)    | N          | Surrogates
+    U+E000..U+F8FF     | AL (XX)    | F or N (A) | Private use
+    U+F900..U+FAFF     | ID         | W          | CJK ideographs
+    U+20000..U+2FFFD   | ID         | W          | CJK ideographs
+    U+30000..U+3FFFD   | ID         | W          | CJK ideographs
+    U+F0000..U+FFFFD   | AL (XX)    | F or N (A) | Private use
+    U+100000..U+10FFFD | AL (XX)    | F or N (A) | Private use
+    Other unassigned   | AL (XX)    | N          | Unassigned
+    -------------------------------------------------------------
+
+=item *
+
+Characters belonging to General Category Mn, Me, Cc, Cf, Zl or Zp have the
+property value Z (nonspacing) defined by this module, regardless of
+East_Asian_Width property values assigned by [UAX #11].
 
 =back
 
@@ -628,25 +690,15 @@ published by Japanese Standards Association, 2004.
 
 =item [UAX #11]
 
-A. Freytag (2008).
-I<Unicode Standard Annex #11: East Asian Width>, Revision 17.
+A. Freytag (2008-2009).
+I<Unicode Standard Annex #11: East Asian Width>, Revision 17-19.
 L<http://unicode.org/reports/tr11/>.
 
 =item [UAX #14]
 
-A. Freytag and A. Heninger (2008).
-I<Unicode Standard Annex #14: Unicode Line Breaking Algorithm>, Revision 22.
+A. Freytag and A. Heninger (2008-2009).
+I<Unicode Standard Annex #14: Unicode Line Breaking Algorithm>, Revision 22-24.
 L<http://unicode.org/reports/tr14/>.
-
-=begin comment
-
-=item [UAX #29]
-
-Mark Davis (2008).
-I<Unicode Standard Annex #29: Unicode Text Segmentation>, Revision 13.
-L<http://www.unicode.org/reports/tr29/>.
-
-=end comment
 
 =back
 

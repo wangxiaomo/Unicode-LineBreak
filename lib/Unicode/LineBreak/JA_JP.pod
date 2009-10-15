@@ -66,6 +66,19 @@ I<インスタンスメソッド>。
 設定を取得または変更する。
 KEY => VALUE の対については L</オプション> を参照。
 
+=item $self->copy
+
+I<コピーコンストラクタ>。
+オブジェクトインスタンスの複製をつくる。
+
+=begin comment
+
+=item $self->reset
+
+I<Undocumented>.
+
+=end comment
+
 =back
 
 =head2 情報の取得
@@ -84,21 +97,6 @@ Unicode 文字列 STRING の最初の文字の East_Asian_Width 特性を得る�
 返値については L</定数> を参照。
 EA_Z は前進を伴わない (幅のない) ことを意味する。
 特性値 A (曖昧) は適切な値に解決する。
-
-=begin comment
-
-=item $self->gcinfo (STR, POS)
-
-I<インスタンスメソッド>。
-Unicode 文字列 STR の位置 POS から始まるB<書記素クラスタ>〔grapheme cluster〕の情報を得る。
-書記素クラスタについて詳しくは [UAX #29] を参照。
-
-3 つの要素を持つ配列 (CLASS, GLEN, ELEN) を返す。
-CLASS は書記素クラスタの最初の文字の行分割特性 (分類)、ただし SA の場合は AL か CM に解決する。GLEN は書記素基底〔grapheme base〕(プリペンド文字を含む) の文字数。ELEN は書記素エキステンダ〔grapheme extender〕の文字数。
-
-B<注>: [UAX #29] では仮名の濁点と半濁点 (ともに合成可能でないもの) が書記素エキステンダ (の一部) になりうるとしているが、当モジュールでは書記素基底と扱う。
-
-=end comment
 
 =item $self->lbclass (STRING)
 
@@ -139,6 +137,7 @@ L</new>、L</config> の両メソッドには以下の対を指定できる。
 行に含みうる最大の文字数。行末の空白文字と改行の文字列を除く。
 文字数は一般に行の長さを表さないことに注意。
 初期値は C<998>。
+C<0> にはできない。
 
 =item ColumnsMin => NUMBER
 
@@ -228,21 +227,21 @@ L</TailorEA> オプションも参照。
 
 =item TailorEA => C<[> ORD C<=E<gt>> CLASS, ... C<]>
 
-個々の文字の East_Asian_Width 特性を調整する。
+個々の文字の East_Asian_Width 特性を手直しする。
 ORD は文字の UCS インデクス値か、それらの配列への参照。
 CLASS は East_Asian_Width 特性のいずれか (L</定数> を参照)。
 
-初期値では、East_Asian_width 特性の調整はしない。
-L</文字の特性の調整> も参照。
+初期値では、East_Asian_width 特性の手直しはしない。
+L</文字の特性の手直し> も参照。
 
 =item TailorLB => C<[> ORD C<=E<gt>> CLASS, ... C<]>
 
-個々の文字の行分割特性 (分類) を調整する。
+個々の文字の行分割特性 (分類) を手直しする。
 ORD は文字の UCS インデクス値か、それらの配列への参照。
 CLASS は行分割特性のいずれか (L</定数> を参照)。
 
-初期値では、行分割特性の調整はしない。
-L</文字の特性の調整> も参照。
+初期値では、行分割特性の手直しはしない。
+L</文字の特性の手直し> も参照。
 
 =item UrgentBreaking => METHOD
 
@@ -280,7 +279,6 @@ METHOD には以下のものを指定できる。
 =item C<"NONBREAKURI">
 
 URI を分割しない。
-現在、HTTP(S) と (S)FTP(S) の URI に対応している。
 
 =item C<"BREAKURI">
 
@@ -304,9 +302,12 @@ URI を、印刷物に適した規則で分割する。
 
 [UAX #11] で定義される 6 つの East_Asian_Width 特性を表す値と、前進を伴わないことを表す EA_Z。
 
-=item C<LB_BK>, C<LB_CR>, C<LB_LF>, C<LB_NL>, C<LB_SP>, C<LB_OP>, C<LB_CL>, C<LB_QU>, C<LB_GL>, C<LB_NS>, C<LB_EX>, C<LB_SY>, C<LB_IS>, C<LB_PR>, C<LB_PO>, C<LB_NU>, C<LB_AL>, C<LB_ID>, C<LB_IN>, C<LB_HY>, C<LB_BA>, C<LB_BB>, C<LB_B2>, C<LB_CB>, C<LB_ZW>, C<LB_CM>, C<LB_WJ>, C<LB_H2>, C<LB_H3>, C<LB_JL>, C<LB_JV>, C<LB_JT>, C<LB_SG>, C<LB_AI>, C<LB_SA>, C<LB_XX>
+=item C<LB_BK>, C<LB_CR>, C<LB_LF>, C<LB_NL>, C<LB_SP>, C<LB_OP>, C<LB_CL>, C<LB_CP>, C<LB_QU>, C<LB_GL>, C<LB_NS>, C<LB_EX>, C<LB_SY>, C<LB_IS>, C<LB_PR>, C<LB_PO>, C<LB_NU>, C<LB_AL>, C<LB_ID>, C<LB_IN>, C<LB_HY>, C<LB_BA>, C<LB_BB>, C<LB_B2>, C<LB_CB>, C<LB_ZW>, C<LB_CM>, C<LB_WJ>, C<LB_H2>, C<LB_H3>, C<LB_JL>, C<LB_JV>, C<LB_JT>, C<LB_SG>, C<LB_AI>, C<LB_SA>, C<LB_XX>
 
-[UAX #14] で定義される 36 の行分割特性 (分類) を表す値。
+[UAX #14] で定義される 37 の行分割特性 (分類) を表す値。
+
+B<注>:
+特性値 CP はUnicode 5.2.0版で導入された。
 
 =item C<MANDATORY>, C<DIRECT>, C<INDIRECT>, C<PROHIBITED>
 
@@ -355,7 +356,7 @@ SELF はオブジェクトのインスタンス、EVENT はサブルーチンが
 たとえば次のコードは、行末の空白を取り除いて行折りをする。
 
     sub fmt {
-        if ($_[2] =~ /^eo/) {
+        if ($_[1] =~ /^eo/) {
             return "\n";
       	}
         return undef;
@@ -380,7 +381,7 @@ SELF はオブジェクトのインスタンス、LEN は先立つ行の長さ�
 	return map {$_ =~ s/yl$/yl-/; $_} split /(\w+?yl(?=\w))/, $_[4];
     }
     my $lb = Unicode::LineBreak->new(UrgentBreaking => \&hyphenize);
-    print $lb->break("Methionylthreonylthreonylglutaminyl...");
+    print $lb->break("Methionylthreonylthreonylglutaminylarginyl...");
 
 L</UserBreaking> オプションの要素に [REGEX, SUBREF] の配列参照を指定する場合、サブルーチンは 2 つの引数を取らなければならない。
 
@@ -389,6 +390,19 @@ L</UserBreaking> オプションの要素に [REGEX, SUBREF] の配列参照を�
 SELF はオブジェクトのインスタンス、STR は REGEX にマッチする分割すべき Unicode 文字列。
 
 サブルーチンは、文字列 STR を分割した結果の配列を返さなければならない。
+
+たとえば次のコードは、HTTP URL を [CMOS] の規則を用いて分割する。
+
+    my $url = qr{http://[\x21-\x7E]+}i;
+    sub breakurl {
+        my $self = shift;
+        my $str = shift;
+        return split m{(?<=[/]) (?=[^/]) |
+                       (?<=[^-.]) (?=[-~.,_?\#%=&]) |
+        	       (?<=[=&]) (?=.)}x, $str;
+    }
+    my $lb = Unicode::LineBreak->new(UserBreaking => [$url, \&breakurl]);
+    print $lb->break($string);
 
 =head2 文字列長の算出
 
@@ -407,13 +421,13 @@ SELF はオブジェクトのインスタンス、LEN は先行する文字列�
 
 初期値では、文字列長の算出には strsize() を使っている。
 
-=head2 文字の特性の調整
+=head2 文字の特性の手直し
 
-L</TailorLB> オプションおよび L</TailorEA> オプションで個々の文字の行分割特性 (分類) や East_Asian_Width 特性を調整できる。その際に便利な定数をいくつか定義してある。
+L</TailorLB> オプションおよび L</TailorEA> オプションで個々の文字の行分割特性 (分類) や East_Asian_Width 特性を手直しできる。その際に便利な定数をいくつか定義してある。
 
 =head3 行分割特性
 
-初期値では、若干の平仮名や片仮名や仮名に準ずるものを行頭禁則文字 (NS) と扱う。
+初期値では、若干の仮名や仮名に準ずるものを行頭禁則文字 (NS) と扱う。
 以下の対を L<TailorLB> オプションに指定すれば、これらの文字を通常の表語文字的な文字 (ID) と扱える。
 
 =over 4
@@ -495,7 +509,33 @@ F<Unicode/LineBreak/Defaults.pm>。
 
 =head1 BUGS
 
-バグやバグのような動作は、開発者に教えてください。L</AUTHOR> を参照。
+バグやバグのような動作は、開発者に教えてください。
+
+CPAN Request Tracker:
+L<http://rt.cpan.org/Public/Dist/Display.html?Name=Unicode-LineBreak>.
+
+=over 4
+
+=item *
+
+以下の文字が、行分割特性が CM であるかのようにふるまう。
+
+    UCS    |名前                                |LB |GCB
+    ------------------------------------------------------------
+    U+034F |COMB. GRAPHEME JOINER               |GL |Extend
+    U+035C |COMB. DOUBLE BREVE BELOW            |GL |Extend
+    U+035D |COMB. DOUBLE BREVE                  |GL |Extend
+    U+035E |COMB. DOUBLE MACRON                 |GL |Extend
+    U+035F |COMB. DOUBLE MACRON BELOW           |GL |Extend
+    U+0360 |COMB. DOUBLE TILDE                  |GL |Extend
+    U+0361 |COMB. DOUBLE INVERTED BREVE         |GL |Extend
+    U+0362 |COMB. DOUBLE RIGHTWARDS ARROW BELOW |GL |Extend
+    U+0F7F |チベット文字ナムチャド〔ヴィサルガ〕|BA |SpacingMark
+    U+FF9E |濁点 (代替名称)                     |NS |Extend
+    U+FF9F |半濁点 (代替名称)                   |NS |Extend
+    ------------------------------------------------------------
+
+=back
 
 =head1 VERSION
 
@@ -507,7 +547,7 @@ L<http://hatuka.nezumi.nu/repos/Unicode-LineBreak/>
 
 =head2 標準への適合性
 
-このモジュールで用いている文字の特性値は、Unicode 標準 5.1.0 版による。
+このモジュールで用いている文字の特性値は、Unicode 標準 5.2.0 版による。
 
 このモジュールでは、実装水準 UAX14-C2 を実装しているつもり。
 
@@ -533,11 +573,33 @@ CB に分類される文字は解決しない。
 
 東南アジアの表記体系の単語分節に対応しない場合は、
 SA に分類される文字は AL に解決する。
-ただし、Grapheme_Break 特性の値が Extend か SpacingMark である文字は CM に解決する。
+ただし、Grapheme_Cluster_Break 特性の値が Extend か SpacingMark である文字は CM に解決する。
 
 =item *
 
 SG や XX に分類される文字は AL に解決する。
+
+=item *
+
+以下の UCS の範囲にあるコードポイントは、文字が割り当てられていなくても決まった特性値を持つ。
+
+    範囲               | lbclass()  | eawidth()  | 説明
+    -------------------------------------------------------------
+    U+3400..U+4DBF     | ID         | W          | CJK漢字
+    U+4E00..U+9FFF     | ID         | W          | CJK漢字
+    U+D800..U+DFFF     | AL (SG)    | N          | サロゲート
+    U+E000..U+F8FF     | AL (XX)    | F か N (A) | 私用領域
+    U+F900..U+FAFF     | ID         | W          | CJK漢字
+    U+20000..U+2FFFD   | ID         | W          | CJK漢字
+    U+30000..U+3FFFD   | ID         | W          | CJK漢字
+    U+F0000..U+FFFFD   | AL (XX)    | F か N (A) | 私用領域
+    U+100000..U+10FFFD | AL (XX)    | F か N (A) | 私用領域
+    その他未割り当て   | AL (XX)    | N          | 未割り当て
+    -------------------------------------------------------------
+
+=item *
+
+一般カテゴリ特性が Mn、Me、Cc、Cf、Zl、Zp のいずれかである文字は、[UAX #11] で割り当てられた East_Asian_Width 特性の値に関わらず、当モジュールで定義した特性値 Z (前進を伴わない) を持つ。
 
 =back
 
@@ -558,25 +620,15 @@ I<日本語文書の組版方法>.
 
 =item [UAX #11]
 
-A. Freytag (2008).
-I<Unicode Standard Annex #11: East Asian Width>, Revision 17.
+A. Freytag (2008-2009).
+I<Unicode Standard Annex #11: East Asian Width>, Revision 17-19.
 L<http://unicode.org/reports/tr11/>.
 
 =item [UAX #14]
 
-A. Freytag and A. Heninger (2008).
-I<Unicode Standard Annex #14: Unicode Line Breaking Algorithm>, Revision 22.
+A. Freytag and A. Heninger (2008-2009).
+I<Unicode Standard Annex #14: Unicode Line Breaking Algorithm>, Revision 22-24.
 L<http://unicode.org/reports/tr14/>.
-
-=begin comment
-
-=item [UAX #29]
-
-Mark Davis (2008).
-I<Unicode Standard Annex #29: Unicode Text Segmentation>, Revision 13.
-L<http://www.unicode.org/reports/tr29/>.
-
-=end comment
 
 =back
 
