@@ -49,23 +49,24 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
 
     switch (gbc) {
     case GB_LF: /* GB5 */
-	break;
+	break; /* switch (gbc) */
 
     case GB_CR: /* GB3, GB4, GB5 */
 	if (pos < str->len) {
-	    linebreak_charprop(obj, str->str[pos], NULL, NULL, &gbc, NULL);
+	    linebreak_charprop(obj, str->str[pos], NULL, &eaw, &gbc, NULL);
 	    if (gbc == GB_LF) {
 		pos++;
 		glen++;
+		gcol += eaw2col(eaw);
 	    }
 	}
-	break;
+	break; /* switch (gbc) */
 
     case GB_Control: /* GB4 */
-	break;
+	break; /* switch (gbc) */
 
     default:
-	if (glbc == LB_SP) /* Special case */
+	if (lbc == LB_SP) /* Special case. */
 	    break;
 
 	pcol = 0;
@@ -74,7 +75,7 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
 	    linebreak_charprop(obj, str->str[pos], &lbc, &eaw, &ngbc, &scr);
 	    /* GB5 */
 	    if (ngbc == GB_Control || ngbc == GB_CR || ngbc == GB_LF)
-		break;
+		break; /* while (pos < str->len) */
 	    /* GB6 - GB8 */
 	    /*
 	     * Assume hangul syllable block is always wide, while most of
@@ -96,7 +97,7 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
 		ecol += eaw2col(eaw);
 		pos++;
 		glen++;
-		continue;
+		continue; /* while (pos < str->len) */
 	    }
 	    /* GB9b */
 	    else if (gbc == GB_Prepend) {
@@ -108,15 +109,15 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
 	    }
 	    /* GB10 */
 	    else
-		break;
+		break; /* while (pos < str->len) */
 
 	    pos++;
 	    glen++;
 	    gbc = ngbc;
 	} /* while (pos < str->len) */
 	gcol += pcol + ecol;
-	break;
-    }
+	break; /* switch (gbc) */
+    } /* switch (gbc) */
 
     if (glbc == LB_SA) {
 #ifdef USE_LIBTHAI
@@ -139,38 +140,81 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
 gcstring_t *gcstring_new(unistr_t *unistr, linebreak_t *lbobj)
 {
     gcstring_t *gcstr;
-    size_t pos, len;
-    size_t glen, gcol;
-    propval_t glbc;
-    gcchar_t gc = {0, 0, 0, PROP_UNKNOWN, 0};
+    size_t len;
 
     if ((gcstr = malloc(sizeof(gcstring_t))) == NULL)
 	return NULL;
-    memset(gcstr, 0, sizeof(gcstring_t));
-
-    if (lbobj == NULL)
-	gcstr->lbobj = linebreak_new();
-    else
+    gcstr->str = NULL;
+    gcstr->len = 0;
+    gcstr->gcstr = NULL;
+    gcstr->gclen = 0;
+    gcstr->pos = 0;
+    if (lbobj == NULL) {
+	if ((gcstr->lbobj = linebreak_new()) == NULL) {
+	    free(gcstr);
+	    return NULL;
+	}
+    } else
 	gcstr->lbobj = linebreak_incref(lbobj);
+
     if (unistr == NULL || unistr->str == NULL || unistr->len == 0)
 	return gcstr;
     gcstr->str = unistr->str;
     gcstr->len = len = unistr->len;
 
-    for (pos = 0; pos < len; pos += glen) {
-	if ((gcstr->gcstr =
-	     realloc(gcstr->gcstr, sizeof(gcchar_t) * (pos + 1))) == NULL)
+    if (len) {
+	size_t pos, glen, gcol;
+	propval_t glbc;
+	gcchar_t gc, *_g;
+
+	if ((gcstr->gcstr = malloc(sizeof(gcchar_t) * len)) == NULL) {
+	    gcstr->str = NULL;
+	    gcstring_destroy(gcstr);
 	    return NULL;
-	_gcinfo(gcstr->lbobj, unistr, pos, &glen, &gcol, &glbc);
-	gc.idx = pos;
-	gc.len = glen;
-	gc.col = gcol;
-	gc.lbc = glbc;
-	memcpy(gcstr->gcstr + gcstr->gclen, &gc, sizeof(gcchar_t));
-	gcstr->gclen++;
+	}
+	gc.flag = 0;
+	for (pos = 0; pos < len; pos += glen) {
+	    _gcinfo(gcstr->lbobj, unistr, pos, &glen, &gcol, &glbc);
+	    gc.idx = pos;
+	    gc.len = glen;
+	    gc.col = gcol;
+	    gc.lbc = glbc;
+	    memcpy(gcstr->gcstr + gcstr->gclen, &gc, sizeof(gcchar_t));
+	    gcstr->gclen++;
+	}
+	if ((_g = realloc(gcstr->gcstr, sizeof(gcchar_t) * gcstr->gclen))
+	    == NULL) {
+	    gcstr->str = NULL;
+	    gcstring_destroy(gcstr);
+	    return NULL;
+	} else
+	    gcstr->gcstr = _g;
     }
 
     return gcstr;
+}
+
+gcstring_t *gcstring_newcopy(unistr_t *str, linebreak_t *lbobj)
+{
+    unistr_t unistr = {NULL, 0};
+
+    if (str->str && str->len) {
+	if ((unistr.str = malloc(sizeof(unichar_t) * str->len)) == NULL)
+	    return NULL;
+	memcpy(unistr.str, str->str, sizeof(unichar_t) * str->len);
+	unistr.len = str->len;
+    }
+    return gcstring_new(&unistr, lbobj);
+}
+
+void gcstring_destroy(gcstring_t *gcstr)
+{
+    if (gcstr == NULL)
+	return;
+    if (gcstr->str) free(gcstr->str);
+    if (gcstr->gcstr) free(gcstr->gcstr);
+    if (gcstr->lbobj) linebreak_destroy(gcstr->lbobj);
+    free(gcstr);
 }
 
 gcstring_t *gcstring_copy(gcstring_t *gcstr)
@@ -203,28 +247,21 @@ gcstring_t *gcstring_copy(gcstring_t *gcstr)
 	memcpy(newgcstr, gcstr->gcstr, sizeof(gcchar_t) * gcstr->gclen);
     }
     new->gcstr = newgcstr;
-    if (gcstr->lbobj != NULL)
+    if (gcstr->lbobj == NULL) {
+	if ((new->lbobj = linebreak_new()) == NULL) {
+	    gcstring_destroy(new);
+	    return NULL;
+	}
+    } else
 	new->lbobj = linebreak_incref(gcstr->lbobj);
-    else
-	new->lbobj = linebreak_new();
     new->pos = 0;
 
     return new;
 }
 
-void gcstring_destroy(gcstring_t *gcstr)
-{
-    if (gcstr == NULL)
-	return;
-    if (gcstr->str) free(gcstr->str);
-    if (gcstr->gcstr) free(gcstr->gcstr);
-    if (gcstr->lbobj) linebreak_destroy(gcstr->lbobj);
-    free(gcstr);
-}
-
 gcstring_t *gcstring_append(gcstring_t *gcstr, gcstring_t *appe)
 {
-    unistr_t ustr = {0, 0};
+    unistr_t ustr = {NULL, 0};
 
     if (gcstr == NULL)
 	return (errno = EINVAL), NULL;
@@ -234,6 +271,8 @@ gcstring_t *gcstring_append(gcstring_t *gcstr, gcstring_t *appe)
 	size_t aidx, alen, blen, newlen, newgclen, i;
 	unsigned char bflag;
 	gcstring_t *cstr;
+	unichar_t *_u;
+	gcchar_t *_g;
 
 	aidx = gcstr->gcstr[gcstr->gclen - 1].idx;
 	alen = gcstr->gcstr[gcstr->gclen - 1].len;
@@ -252,17 +291,17 @@ gcstring_t *gcstring_append(gcstring_t *gcstr, gcstring_t *appe)
 
 	newlen = gcstr->len + appe->len;
 	newgclen = gcstr->gclen - 1 + cstr->gclen + appe->gclen - 1;
-	if ((gcstr->str = realloc(gcstr->str,
-				  sizeof(unichar_t) * newlen)) == NULL) {
+	if ((_u = realloc(gcstr->str, sizeof(unichar_t) * newlen)) == NULL) {
 	    gcstring_destroy(cstr);
 	    return NULL;
-	}
-	if ((gcstr->gcstr = realloc(gcstr->gcstr,
-				    sizeof(gcchar_t) * newgclen)) == NULL) {
-	    free(gcstr->str);
+	} else
+	    gcstr->str = _u;
+	if ((_g = realloc(gcstr->gcstr,
+			  sizeof(gcchar_t) * newgclen)) == NULL) {
 	    gcstring_destroy(cstr);
 	    return NULL;
-	}
+	} else
+	    gcstr->gcstr = _g;
 	memcpy(gcstr->str + gcstr->len, appe->str,
 	       sizeof(unichar_t) * appe->len);
 	for (i = 0; i < cstr->gclen; i++) {
