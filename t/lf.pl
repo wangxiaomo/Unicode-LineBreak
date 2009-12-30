@@ -1,6 +1,30 @@
 use strict;
 use Text::LineFold;
 
+sub dounfoldtest {
+    my $in = shift;
+    my $out = shift;
+    my $method = shift;
+
+    open IN, "<testin/$in.in" or die "open: $!";
+    my $instring = join '', <IN>;
+    close IN;
+    my $lf = Text::LineFold->new(@_);
+    my $unfolded = $lf->unfold($instring, $method);
+
+    my $outstring = '';
+    if (open OUT, "<testin/$out.out") {
+        $outstring = join '', <OUT>;
+        close OUT;
+    } else {
+        open XXX, ">testin/$out.xxx";
+        print XXX $unfolded;
+        close XXX;
+    }
+
+    is($unfolded, $outstring);
+}
+
 sub do5tests {
     my $in = shift;
     my $out = shift;
@@ -12,9 +36,15 @@ sub do5tests {
     my %folded = ();
     foreach my $method (qw(PLAIN FIXED FLOWED)) {
 	$folded{$method} = $lf->fold($instring, $method);
-	open OUT, "<testin/$out.".(lc $method).".out" or die "open: $!";
-	my $outstring = join '', <OUT>;
-	close OUT;
+	my $outstring = '';
+	if (open OUT, "<testin/$out.".(lc $method).".out") {
+	    $outstring = join '', <OUT>;
+	    close OUT;
+	} else {
+	    open XXX, ">testin/$out.".(lc $method).".xxx";
+	    print XXX $folded{$method};
+	    close XXX;
+	}
 	is($folded{$method}, $outstring);
     }
     foreach my $method (qw(FIXED FLOWED)) {

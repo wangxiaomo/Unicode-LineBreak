@@ -21,13 +21,12 @@ our %EXPORT_TAGS = ('all' => [@EXPORT_OK]);
 our @ISA = qw(Exporter);
 
 ### Other modules:
-use Carp qw(croak carp);
 use Unicode::LineBreak;
 
 ### Globals
 
 # The package version
-our $VERSION = '0.005';
+our $VERSION = '0.005.1';
 
 use overload 
     '@{}' => \&as_arrayref,
@@ -199,6 +198,14 @@ I<Undocumented>.
 
 =end comment
 
+=begin comment
+
+=item lbclass_ext ([OFFSET])
+
+I<Undocumented>.
+
+=end comment
+
 =item next
 
 =item C<E<lt>>OBJECTC<E<gt>>
@@ -216,6 +223,10 @@ Returns next position of grapheme cluster string.
 
 =head1 CAVEAT
 
+=over 4
+
+=item *
+
 On Perl around 5.10.1, implicit conversion from Unicode::GCString object to
 Unicode string sometimes let C<"utf8_mg_pos"> cache be confused.
 
@@ -227,10 +238,14 @@ do
 
     $sub = substr("$gcstring", $i, $j);
 
-or do
+    $sub = substr($gcstring->as_string, $i, $j);
 
-    $string = $gcstring->as_string;
-    $sub = substr($string, $i, $j);
+=item *
+
+This module implements I<default> algorithm for determining grapheme cluster
+boundaries.  Tailoring mechanism has not been supported yet.
+
+=back
 
 =head1 VERSION
 

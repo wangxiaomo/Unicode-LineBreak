@@ -25,16 +25,18 @@ extern void linebreak_charprop(linebreak_t *, unichar_t,
 
 static
 void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
-	     size_t *glenptr, size_t *gcolptr, propval_t *glbcptr)
+	     size_t *glenptr, size_t *gcolptr, propval_t *glbcptr,
+	     propval_t *elbcptr)
 {
-    propval_t glbc = PROP_UNKNOWN, ggbc, gscr;
+    propval_t glbc = PROP_UNKNOWN, elbc = PROP_UNKNOWN;
     size_t glen, gcol, pcol, ecol;
     propval_t lbc, eaw, gbc, ngbc, scr;
 
     if (!str || !str->str || !str->len) {
-	if (glbcptr) *glbcptr = PROP_UNKNOWN;
-	if (glenptr) *glenptr = 0;
-	if (gcolptr) *gcolptr = 0;
+	*glenptr = 0;
+	*gcolptr = 0;
+	*glbcptr = PROP_UNKNOWN;
+	*elbcptr = PROP_UNKNOWN;
 	return;
     }
 
@@ -43,9 +45,16 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
     glen = 1;
     gcol = eaw2col(eaw);
 
-    glbc = lbc;
-    ggbc = gbc;
-    gscr = scr;
+    if (lbc != LB_SA)
+	glbc = lbc;
+#ifdef USE_LIBTHAI
+    else if (scr == SC_Thai)
+	glbc = lbc;
+#endif /* USE_LIBTHAI */
+    else if (gbc == GB_Extend || gbc == GB_SpacingMark)
+	glbc = LB_CM;
+    else
+	glbc = LB_AL;
 
     switch (gbc) {
     case GB_LF: /* GB5 */
@@ -91,19 +100,32 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
 	    /* GB9, GB9a */
 	    /*
 	     * Some morbid sequences such as <L Extend V T> are allowed
-	       according to UAX #14.
+	       according to UAX #14 LB9.
 	     */
 	    else if (ngbc == GB_Extend || ngbc == GB_SpacingMark) {
 		ecol += eaw2col(eaw);
 		pos++;
 		glen++;
+		if (lbc == LB_CM)
+		    ; /* CM in grapheme extender is ignored. */
+		else if (lbc != LB_SA)
+		    elbc = lbc;
+		/* SA in g. extender is resolved to CM so it is ignored. */
 		continue; /* while (pos < str->len) */
 	    }
 	    /* GB9b */
 	    else if (gbc == GB_Prepend) {
-		glbc = lbc;
-		ggbc = ngbc;
-		gscr = scr;
+		/* Here, next char shall grapheme base (or additional prepend
+		 * character), since its GCB property is neither Control,
+		 * Extend nor SpacingMark. */
+		if (lbc != LB_SA)
+		    elbc = lbc;
+#ifdef USE_LIBTHAI
+		else if (scr == SC_Thai)
+		    elbc = lbc; /* SA char in g. base is not resolved... */
+#endif /* USE_LIBTHAI */
+		else
+		    elbc = LB_AL; /* ...or resolved to AL. */
 		pcol += gcol;
 		gcol = eaw2col(eaw);
 	    }
@@ -119,15 +141,10 @@ void _gcinfo(linebreak_t *obj, unistr_t *str, size_t pos,
 	break; /* switch (gbc) */
     } /* switch (gbc) */
 
-    if (glbc == LB_SA) {
-#ifdef USE_LIBTHAI
-	if (gscr != SC_Thai)
-#endif
-	    glbc = (ggbc == GB_Extend || ggbc == GB_SpacingMark)? LB_CM: LB_AL;
-    }
-    if (glenptr) *glenptr = glen;
-    if (gcolptr) *gcolptr = gcol;
-    if (glbcptr) *glbcptr = glbc;
+    *glenptr = glen;
+    *gcolptr = gcol;
+    *glbcptr = glbc;
+    *elbcptr = elbc;
 }
 
 /*
@@ -169,7 +186,7 @@ gcstring_t *gcstring_new(unistr_t *unistr, linebreak_t *lbobj)
 
     if (len) {
 	size_t pos, glen, gcol;
-	propval_t glbc;
+	propval_t glbc, elbc;
 	gcchar_t gc, *_g;
 
 	if ((gcstr->gcstr = malloc(sizeof(gcchar_t) * len)) == NULL) {
@@ -179,11 +196,12 @@ gcstring_t *gcstring_new(unistr_t *unistr, linebreak_t *lbobj)
 	}
 	gc.flag = 0;
 	for (pos = 0; pos < len; pos += glen) {
-	    _gcinfo(gcstr->lbobj, unistr, pos, &glen, &gcol, &glbc);
+	    _gcinfo(gcstr->lbobj, unistr, pos, &glen, &gcol, &glbc, &elbc);
 	    gc.idx = pos;
 	    gc.len = glen;
 	    gc.col = gcol;
 	    gc.lbc = glbc;
+	    gc.elbc = elbc;
 	    memcpy(gcstr->gcstr + gcstr->gclen, &gc, sizeof(gcchar_t));
 	    gcstr->gclen++;
 	}
@@ -343,6 +361,7 @@ gcstring_t *gcstring_append(gcstring_t *gcstr, gcstring_t *appe)
 	    gc->len = cstr->gcstr[i].len;
 	    gc->col = cstr->gcstr[i].col;
 	    gc->lbc = cstr->gcstr[i].lbc;
+	    gc->elbc = cstr->gcstr[i].elbc;
 	    if (aidx + alen == gc->idx) /* Restore flag if possible */
 		gc->flag = bflag;
 	}
@@ -353,6 +372,7 @@ gcstring_t *gcstring_append(gcstring_t *gcstr, gcstring_t *appe)
 	    gc->len = appe->gcstr[i].len;
 	    gc->col = appe->gcstr[i].col;
 	    gc->lbc = appe->gcstr[i].lbc;
+	    gc->elbc = appe->gcstr[i].elbc;
 	    gc->flag = appe->gcstr[i].flag;
 	}
 
